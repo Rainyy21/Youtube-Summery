@@ -4,3 +4,4 @@ faster-whisper
 pytest
 openai
 python-dotenv
+

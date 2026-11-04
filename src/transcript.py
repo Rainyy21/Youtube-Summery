@@ -18,6 +18,14 @@ def get_video_id(url: str):
     match = re.search(r"(?:v=|youtu\.be/|shorts/|embed/)([\w-]{11})", url)
     return match.group(1) if match else url
 
+def get_title(url: str) -> str:
+    opts = {"quiet": True, "no_warnings": True, "skip_download": True}
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+        return info.get("title") or ""
+    except yt_dlp.utils.DownloadError:
+        return ""
 
 def transscript_url(url: str):
     with tempfile.TemporaryDirectory() as tmp:
@@ -33,7 +41,7 @@ def transscript_url(url: str):
         return " ".join(seg.text for seg in segments)
 
 
-def youtubeTranscrip(url: str) -> str | None:
+def get_transcript(url: str) -> str | None:
     ytt = YouTubeTranscriptApi()
     tyid = get_video_id(url)
     # try to see if the youtube transscript api could get the transscript
@@ -41,11 +49,14 @@ def youtubeTranscrip(url: str) -> str | None:
         fetched = ytt.fetch(tyid, languages=["en"])
         text = " ".join(snippet.text for snippet in fetched)
     except CouldNotRetrieveTranscript:
-        text = transscript_url(url)
+        try:
+            text = transscript_url(url)
+        except yt_dlp.utils.DownloadError:
+            return None
     return text or None
 
 
 if __name__ == "__main__":
     import sys
 
-    print(youtubeTranscrip(sys.argv[1]))
+    print(get_transcript(sys.argv[1]))

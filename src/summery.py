@@ -1,4 +1,5 @@
 import os
+import re
 from dotenv import load_dotenv
 from openai import (
     OpenAI,
@@ -20,19 +21,31 @@ openrouter = OpenAI(
 )
 
 PROVIDER = [
-    {"name": "GLM 5.2 (free)", "model": "z-ai/glm-5.2:free", "on": True},
+    {"name": "Nemotron 3 Ultra (free)", "model": "nvidia/nemotron-3-ultra-550b-a55b:free", "on": True},
+    {"name": "Gemma 4 31B (free)", "model": "google/gemma-4-31b-it:free", "on": True},
     {"name": "GLM 5.3 Flash", "model": "z-ai/glm-5.3-flash", "on": True},
 ]
 
 SYSTEM_PROMPT = """
     You summarize YouTube transcripts into Markdown notes.
     Always use this structure:
+    Tags: (3-6 short lowercase topic tags, comma separated)
     ## Summary
-    (3-5 sentences)
+    (4-6 sentences: what the video is about, the main argument or goal,
+    and how it ends or what it concludes)
     ## Key Points
-    (bullet list)
+    (group the points under ### subheadings, one per main topic or section
+    of the video. Under each, 2-5 bullets. Each bullet is 1-2 sentences and
+    keeps the useful specifics: numbers, steps, names, examples, reasons.)
     ## Takeaways
-    (bullet list)
+    (3-5 bullets: what the viewer should remember or do)
+
+    Rules for length:
+    - Match the depth to the video. A short or simple video gets fewer
+      sections and bullets; don't pad it out.
+    - Never go over 2 sentences in a bullet.
+    - Stay under about 700 words in total.
+    - Skip filler like intros, sponsor segments, and "like and subscribe".
     Only output the Markdown. Don't add an intro or closing line.
     """
 
@@ -76,5 +89,26 @@ def ask(prompt, system=SYSTEM_PROMPT):
     )
 
 
+def clean_tag(tag):
+    """Turn 'Machine Learning' or '#AI' into 'machine-learning' / 'ai'."""
+    tag = tag.strip().lstrip("#").lower()
+    tag = re.sub(r"\s+", "-", tag)
+    return re.sub(r"[^\w-]", "", tag)
+
+
+# pull the "Tags:" line out of the reply so it doesn't end up in the note
+def split_tags(reply):
+    tags = []
+    kept = []
+    for line in reply.strip().splitlines():
+        if not tags and line.strip().lower().startswith("tags:"):
+            raw = line.split(":", 1)[1]
+            tags = [t for t in (clean_tag(t) for t in raw.split(",")) if t]
+        else:
+            kept.append(line)
+    return "\n".join(kept).strip(), tags
+
+
 def summarize(text):
-    return ask(f"Transcript:\n{text}")
+    """Return (summary, tags). tags is empty if the model didn't give any."""
+    return split_tags(ask(f"Transcript:\n{text}"))

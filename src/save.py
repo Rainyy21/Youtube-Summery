@@ -2,8 +2,6 @@ from pathlib import Path
 from datetime import date
 from config import get_output_dir
 
-DEFAULT_DIR = "~/Documents/Notes"
-
 
 def write_note(folder, filename, content):
     """Create the folder if needed, pick a free path, write the file."""
@@ -50,11 +48,13 @@ tags: [{tags}]
     return content
 
 
-def save_md(title, url, summary, folder=None):
+def save_md(title, url, summary, folder=None, tags=()):
     """Main function: pick the folder, create it if needed,
-    build the content, write the file, return the path."""
+    build the content, write the file, return the path.
+    Extra tags are added after the default youtube/summary ones."""
     folder = Path(folder or get_output_dir()).expanduser()
-    content = build_content(title, url, summary)
+    all_tags = list(dict.fromkeys(["youtube", "summary", *tags]))
+    content = build_content(title, url, summary, tags=", ".join(all_tags))
     return write_note(folder, clean_filename(title), content)
 
 
