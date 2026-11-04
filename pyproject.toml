@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name="ytSummery"
+version ="1.0.0"
+dynamic = ["dependencies"]
+
+[project.scripts]
+ytsum = "main:main"
+
+[tool.setuptools]
+package-dir= {"" = "src"}
+py-modules = ["main", "config","transcript","save","summery"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
