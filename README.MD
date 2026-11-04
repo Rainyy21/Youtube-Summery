@@ -102,7 +102,6 @@ The models are listed in `PROVIDER` in `src/summery.py` and tried in order:
 | Name | Model ID |
 | --- | --- |
 | Nemotron 3 Ultra (free) | `nvidia/nemotron-3-ultra-550b-a55b:free` |
-| Gemma 4 31B (free) | `google/gemma-4-31b-it:free` |
 | GLM 5.3 Flash | `z-ai/glm-5.3-flash` |
 
 To add, remove or reorder models, edit that list. Any model on OpenRouter will work.

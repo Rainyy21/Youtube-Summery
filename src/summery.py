@@ -22,7 +22,6 @@ openrouter = OpenAI(
 
 PROVIDER = [
     {"name": "Nemotron 3 Ultra (free)", "model": "nvidia/nemotron-3-ultra-550b-a55b:free", "on": True},
-    {"name": "Gemma 4 31B (free)", "model": "google/gemma-4-31b-it:free", "on": True},
     {"name": "GLM 5.3 Flash", "model": "z-ai/glm-5.3-flash", "on": True},
 ]
 
