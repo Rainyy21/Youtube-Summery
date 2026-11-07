@@ -125,3 +125,24 @@ def test_ask_all_fail_exits(monkeypatch):
 def test_summarize(monkeypatch):
     monkeypatch.setattr(summery, "ask", lambda prompt: "Tags: ai\n## Summary\nhi")
     assert summery.summarize("transcript") == ("## Summary\nhi", ["ai"])
+
+
+def test_summarize_long_transcript_uses_chunks(monkeypatch):
+    monkeypatch.setattr(summery, "chunk_text", lambda text: ["part a", "part b"])
+    prompts = []
+
+    def ask(prompt, system=summery.SYSTEM_PROMPT):
+        prompts.append((prompt, system))
+        if system == summery.CHUNK_SYSTEM:
+            return f"- note from {prompt.splitlines()[-1]} [0:00]"
+        return "Tags: ai\n## Summary\nhi"
+
+    monkeypatch.setattr(summery, "ask", ask)
+    assert summery.summarize("transcript") == ("## Summary\nhi", ["ai"])
+    assert [s for _, s in prompts] == [
+        summery.CHUNK_SYSTEM,
+        summery.CHUNK_SYSTEM,
+        summery.SYSTEM_PROMPT,
+    ]
+    final = prompts[-1][0]
+    assert "note from part a" in final and "note from part b" in final

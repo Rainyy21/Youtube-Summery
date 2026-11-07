@@ -5,7 +5,14 @@ import yt_dlp
 from youtube_transcript_api import TranscriptsDisabled
 
 import transcript
-from transcript import get_title, get_transcript, get_video_id
+from transcript import (
+    chunk_text,
+    clean_transcript,
+    get_title,
+    get_transcript,
+    get_video_id,
+    stamp,
+)
 
 
 @pytest.mark.parametrize(
@@ -66,7 +73,7 @@ def fake_api(snippets=None, error=None):
         def fetch(self, video_id, languages):
             if error:
                 raise error
-            return [SimpleNamespace(text=t) for t in snippets]
+            return [SimpleNamespace(text=t, start=i * 5.0) for i, t in enumerate(snippets)]
 
     return FakeApi
 
@@ -74,7 +81,7 @@ def fake_api(snippets=None, error=None):
 def test_get_transcript_from_youtube(monkeypatch):
     monkeypatch.setattr(transcript, "YouTubeTranscriptApi", fake_api(["hello", "world"]))
     monkeypatch.setattr(transcript, "transscript_url", lambda url: pytest.fail("should not use whisper"))
-    assert get_transcript("https://youtu.be/dQw4w9WgXcQ") == "hello world"
+    assert get_transcript("https://youtu.be/dQw4w9WgXcQ") == "[0:00] hello\n[0:05] world"
 
 
 def test_get_transcript_falls_back_to_whisper(monkeypatch):
@@ -98,3 +105,36 @@ def test_get_transcript_returns_none_when_everything_fails(monkeypatch):
 def test_get_transcript_empty_is_none(monkeypatch):
     monkeypatch.setattr(transcript, "YouTubeTranscriptApi", fake_api([]))
     assert get_transcript("https://youtu.be/dQw4w9WgXcQ") is None
+
+
+@pytest.mark.parametrize(
+    "seconds, expected",
+    [(0, "[0:00]"), (75.9, "[1:15]"), (3725, "[1:02:05]")],
+)
+def test_stamp(seconds, expected):
+    assert stamp(seconds) == expected
+
+
+def test_clean_transcript_keeps_timestamps():
+    raw = "[0:01] [Music] um so so I think &amp; that\n\n[0:04] >> uh ok"
+    assert clean_transcript(raw) == "[0:01] so I think & that\n[0:04] ok"
+
+
+def test_chunk_text_short_is_one_chunk():
+    assert chunk_text("short text", max_chars=100) == ["short text"]
+
+
+def test_chunk_text_splits_on_lines():
+    lines = [f"[0:{i:02d}] line number {i}" for i in range(50)]
+    text = "\n".join(lines)
+    chunks = chunk_text(text, max_chars=100)
+    assert len(chunks) > 1
+    assert all(len(c) <= 100 for c in chunks)
+    assert "\n".join(chunks) == text  # nothing lost, no line cut in half
+
+
+def test_chunk_text_splits_long_line_by_words():
+    text = "word " * 100
+    chunks = chunk_text(text, max_chars=50)
+    assert all(len(c) <= 50 for c in chunks)
+    assert " ".join(chunks) == text.strip()

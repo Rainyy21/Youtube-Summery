@@ -1,6 +1,7 @@
 import os
 import re
 from dotenv import load_dotenv
+from transcript import clean_transcript, chunk_text
 from openai import (
     OpenAI,
     RateLimitError,
@@ -13,7 +14,9 @@ load_dotenv()
 
 API_KEY = os.environ.get("OPENROUTER_API_KEY")
 if not API_KEY:
-    raise SystemExit("OPENROUTER_API_KEY is not set. Add your OpenRouter key and try again.")
+    raise SystemExit(
+        "OPENROUTER_API_KEY is not set. Add your OpenRouter key and try again."
+    )
 
 openrouter = OpenAI(
     base_url="https://openrouter.ai/api/v1",
@@ -21,9 +24,17 @@ openrouter = OpenAI(
 )
 
 PROVIDER = [
-    {"name": "Nemotron 3 Ultra (free)", "model": "nvidia/nemotron-3-ultra-550b-a55b:free", "on": True},
+    {
+        "name": "Nemotron 3 Ultra (free)",
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "on": True,
+    },
     {"name": "GLM 5.3 Flash", "model": "z-ai/glm-5.3-flash", "on": True},
 ]
+
+CHUNK_SYSTEM = """You take notes on one section of a longer transcript.
+List the main points as short bullets. Only output the bullets.
+End each bullet with the timestamp where it's discussed, like [12:34]."""
 
 SYSTEM_PROMPT = """
     You summarize YouTube transcripts into Markdown notes.
@@ -109,5 +120,15 @@ def split_tags(reply):
 
 
 def summarize(text):
-    """Return (summary, tags). tags is empty if the model didn't give any."""
-    return split_tags(ask(f"Transcript:\n{text}"))
+    """Return (summary, tags). tags is empty if the model didn't give any.
+    Long transcripts are noted chunk by chunk, then the notes are summarized."""
+    chunks = chunk_text(clean_transcript(text))
+    if len(chunks) == 1:
+        return split_tags(ask(f"Transcript:\n{chunks[0]}"))
+
+    notes = []
+    for i, chunk in enumerate(chunks, 1):
+        print(f"Reading part {i}/{len(chunks)}...")
+        notes.append(ask(f"Part {i} of {len(chunks)}:\n{chunk}", CHUNK_SYSTEM))
+    joined = "\n\n".join(notes)
+    return split_tags(ask(f"Notes on each part of the transcript, in order:\n{joined}"))
