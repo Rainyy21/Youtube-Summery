@@ -1,16 +1,17 @@
 import argparse
 
 from config import get_output_dir, set_output_dir
-from transcript import get_video_id, get_title, get_transcript
+from transcript import get_video_id, get_info, get_transcript
 from save import save_md, save_transcript
 
 
 def run(url):
     """Link in, note out."""
     # imported here so --show-output / --set-output work without an API key
-    from summery import summarize
+    from summery import summarize, link_timestamps
 
-    title = get_title(url) or get_video_id(url)
+    title, duration = get_info(url)
+    title = title or get_video_id(url)
     print(f"Working on: {title}")
 
     tran = get_transcript(url)
@@ -19,6 +20,7 @@ def run(url):
 
     try:
         summar, tags = summarize(tran)
+        summar = link_timestamps(summar, get_video_id(url), duration)
         path = save_md(title, url, summar, tags=tags)
         print(f"Saved to {path}")
 

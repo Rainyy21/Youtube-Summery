@@ -1,6 +1,7 @@
 youtube-transcript-api
 yt-dlp
 faster-whisper
+av<19  # faster-whisper 1.2.1 breaks on av 19 (metadata_errors removed)
 pytest
 openai
 python-dotenv
