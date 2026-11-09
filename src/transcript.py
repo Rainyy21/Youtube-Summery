@@ -11,7 +11,6 @@ _model = None
 # filter
 NOISE_TAGS = re.compile(r"\[[A-Za-z][A-Za-z ]*\]")  # [Music], not [12:34]
 FILLERS = re.compile(r"\b(?:u+m+|u+h+|e+r+m+|h+m+)\b,?\s*", re.IGNORECASE)
-REPEATS = re.compile(r"\b(\w+)(?:\s+\1\b)+", re.IGNORECASE)
 
 # the chunk size
 CHUNK_CHARS = 100_000  # most videos fit in one chunk; set small (e.g. 2000) to test
@@ -44,15 +43,21 @@ def get_video_id(url: str):
     return match.group(1) if match else url
 
 
-# get the title for the videos
-def get_title(url: str) -> str:
+# get the title and length of the video in one request
+def get_info(url: str) -> tuple[str, int | None]:
+    """Return (title, duration in seconds), or ("", None) if it can't be fetched."""
     opts = {"quiet": True, "no_warnings": True, "skip_download": True}
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=False)
-        return info.get("title") or ""
+        return info.get("title") or "", info.get("duration")
     except yt_dlp.utils.DownloadError:
-        return ""
+        return "", None
+
+
+# get the title for the videos
+def get_title(url: str) -> str:
+    return get_info(url)[0]
 
 
 # get the transcript either form api or the yt_dlp and
@@ -76,7 +81,6 @@ def clean_transcript(transcript: str):
     transcript = transcript.replace(">>", " ")
     transcript = NOISE_TAGS.sub(" ", transcript)
     transcript = FILLERS.sub("", transcript)
-    transcript = REPEATS.sub(r"\1", transcript)
     transcript = re.sub(r"\s+([,.!?])", r"\1", transcript)
     transcript = re.sub(r",\s*,", ",", transcript)
     transcript = re.sub(r"[ \t]+", " ", transcript)

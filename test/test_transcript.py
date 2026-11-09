@@ -8,6 +8,7 @@ import transcript
 from transcript import (
     chunk_text,
     clean_transcript,
+    get_info,
     get_title,
     get_transcript,
     get_video_id,
@@ -60,6 +61,18 @@ def test_get_title(monkeypatch):
 def test_get_title_missing(monkeypatch):
     monkeypatch.setattr(yt_dlp, "YoutubeDL", FakeYDL(info={}))
     assert get_title("url") == ""
+
+
+def test_get_info(monkeypatch):
+    info = {"title": "Cool Video", "duration": 4059}
+    monkeypatch.setattr(yt_dlp, "YoutubeDL", FakeYDL(info=info))
+    assert get_info("url") == ("Cool Video", 4059)
+
+
+def test_get_info_download_error(monkeypatch):
+    error = yt_dlp.utils.DownloadError("nope")
+    monkeypatch.setattr(yt_dlp, "YoutubeDL", FakeYDL(error=error))
+    assert get_info("url") == ("", None)
 
 
 def test_get_title_download_error(monkeypatch):
@@ -116,8 +129,14 @@ def test_stamp(seconds, expected):
 
 
 def test_clean_transcript_keeps_timestamps():
-    raw = "[0:01] [Music] um so so I think &amp; that\n\n[0:04] >> uh ok"
+    raw = "[0:01] [Music] um so I think &amp; that\n\n[0:04] >> uh ok"
     assert clean_transcript(raw) == "[0:01] so I think & that\n[0:04] ok"
+
+
+def test_clean_transcript_keeps_repeated_words():
+    # "dash dash name" is the --name flag, so repeats must stay
+    raw = "[46:24] which is dash dash name"
+    assert clean_transcript(raw) == raw
 
 
 def test_chunk_text_short_is_one_chunk():
